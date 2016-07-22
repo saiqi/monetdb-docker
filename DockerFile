@@ -1,0 +1,39 @@
+FROM debian:jessie
+MAINTAINER Julien Bernard <julien.bernard.iphone@gmail.com>
+
+EXPOSE 5000
+
+RUN apt-get update && apt-get install -y supervisor
+
+RUN mkdir -p /var/log/supervisor
+
+COPY configs/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+COPY configs/monetdb.list /etc/apt/sources.list.d/monetdb.list
+
+RUN apt-get install -y wget
+
+RUN wget --no-check-certificate --output-document=- https://www.monetdb.org/downloads/MonetDB-GPG-KEY | apt-key add -
+
+RUN apt-get update && apt-get install -y \
+	monetdb5-sql \
+	monetdb-client \
+	monetdb-R
+
+RUN usermod -a -G monetdb monetdb
+
+RUN apt-get install -y dos2unix
+
+COPY scripts/set-monetdb-password.sh /home/monetdb/set-monetdb-password.sh
+RUN chmod +x /home/monetdb/set-monetdb-password.sh
+
+COPY configs/.monetdb /home/monetdb/.monetdb
+
+COPY scripts/init-db.sh /home/monetdb/init-db.sh
+RUN chmod +x /home/monetdb/init-db.sh
+
+RUN dos2unix /home/monetdb/*.sh
+
+RUN su -c "sh /home/monetdb/init-db.sh" monetdb
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
