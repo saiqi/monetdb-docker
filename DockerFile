@@ -1,16 +1,10 @@
 FROM debian:jessie
-MAINTAINER Julien Bernard <julien.bernard.iphone@gmail.com>
 
 RUN groupadd -r monetdb && useradd -r -g monetdb monetdb
 
 EXPOSE 50000
 
-RUN apt-get update && apt-get install -y \
-	r-base-dev \
-	wget \
-	dos2unix \
-	python-pip && pip install pip --upgrade && pip install supervisor
-
+RUN apt-get update && apt-get install -y wget apt-transport-https
 RUN wget --no-check-certificate --output-document=- https://www.monetdb.org/downloads/MonetDB-GPG-KEY | apt-key add -
 
 COPY configs/monetdb.list /etc/apt/sources.list.d/monetdb.list
@@ -18,11 +12,9 @@ COPY configs/monetdb.list /etc/apt/sources.list.d/monetdb.list
 RUN apt-get update && apt-get install -y \
 	monetdb5-sql \
 	monetdb-client \
-	monetdb-R
+	monetdb-python2
 
-RUN mkdir -p /var/log/monetdb /var/log/supervisor/
-
-COPY configs/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN mkdir -p /var/log/monetdb
 
 RUN chown -R monetdb:monetdb /var/monetdb5 /var/log/monetdb
 
@@ -31,9 +23,12 @@ COPY configs/.monetdb /home/monetdb/.monetdb
 COPY scripts/init-db.sh /home/monetdb/init-db.sh
 
 RUN chmod +x /home/monetdb/set-monetdb-password.sh
-RUN dos2unix /home/monetdb/*.sh
 RUN chmod +x /home/monetdb/init-db.sh
 
-RUN su -c "sh /home/monetdb/init-db.sh" monetdb
+ENTRYPOINT [ "/home/monetdb/init-db.sh" ]
 
-CMD ["/usr/local/bin/supervisord","-c","/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["monetdb", "start", "db"]
+
+VOLUME /var/monetdb5/dbfarm
+
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
