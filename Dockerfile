@@ -1,4 +1,4 @@
-FROM monetdb/monetdb-r-docker:latest
+FROM monetdb/monetdb-r-docker:july2017-sp4
 
 RUN yum remove -y numpy
 
